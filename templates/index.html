@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask Bard Example</title>
+    <style>
+        
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .cricketer-section {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            margin-top: 20px;
+        }
+
+        .cricketer-card {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            margin: 10px;
+            padding: 10px;
+            width: 30%;
+        }
+        .history-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        .history-item {
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .clear-history-button {
+            margin-top: 10px;
+        }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .user-input-form {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        label {
+            margin-right: 10px;
+        }
+
+        input {
+            flex: 1;
+            padding: 8px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+        }
+
+        .submit-button {
+            margin-left: 10px;
+        }
+
+        .chat-message {
+            max-width: 80%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+        }
+
+        .user-message {
+            background-color: #e6e6e6;
+            align-self: flex-start;
+        }
+
+        .bot-message {
+            background-color: #4caf50;
+            color: white;
+            align-self: flex-end;
+        }
+        .item-search-output {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            padding: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 200px;
+            display: none;
+        }
+    
+        #item-suggestions-container {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: #000; /* Set background color to black */
+            border: 1px solid #ccc;
+            padding: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 200px;
+            display: none;
+            color: #fff; /* Set text color to white */
+        }
+        
+        .item-search-output {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: #000; /* Set background color to black */
+            border: 1px solid #ccc;
+            padding: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 200px;
+            
+            color: #fff; /* Set text color to white */
+        }
+    
+        #item-suggestions-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+    
+        #item-suggestions-list li {
+            margin-bottom: 5px;
+            cursor: pointer;
+        }
+    
+        #item-suggestions-list li:hover {
+            background-color: #f0f0f0;
+        }
+        {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        input {
+            width: 300px;
+            padding: 8px;
+            font-size: 16px;
+        }
+        #suggestions {
+            margin-top: 10px;
+            max-height: 100px;
+            overflow-y: auto;
+            position: absolute;
+            width: 300px;
+            border: 1px solid #ccc;
+            display: none;
+        }
+        .suggestion {
+            cursor: pointer;
+            padding: 8px;
+            border-bottom: 1px solid #ccc;
+            width: 100%; /* Set the width to 100% */
+}
+
+        .suggestion:last-child {
+            border-bottom: none;
+        }
+        .suggestion:hover {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div id="recommendations-section">
+        <h2>Item Recommendations</h2>
+        <ul id="recommendations-list"></ul>
+    </div>
+    <div class="cricketer-section">
+        <div class="cricketer-card">
+            <h3><a href="/category/FreshVegetable">Fresh Vegetable</a></h3>
+        </div>
+
+        <div class="cricketer-card">
+            <h3><a href="/category/FreshFruit">Fresh Fruit</a></h3>
+        </div>
+
+        <div class="cricketer-card">
+            <h3><a href="/category/DairyBreadEggs">Dairy, Bread and Eggs</a></h3>
+        </div>
+
+        <div class="cricketer-card">
+            <h3><a href="/category/ColdDrinkJuices">Cold Drink and Juices</a></h3>
+        </div>
+
+        <div class="cricketer-card">
+            <h3><a href="/category/TeaCoffeeMore">Tea Coffee and more</a></h3>
+        </div>
+    </div>
+    <h1>Product Search</h1>
+    <input type="text" id="searchInput" oninput="getAutocompleteSuggestions()" onkeydown="handleKeyDown()">
+    <div id="suggestions"></div>
+    <div class="history-container">
+        {% if history %}
+            <h2>Query History:</h2>
+            <ul>
+                {% for entry in history %}
+                    <li class="history-item">
+                        <div><strong>User Input:</strong> {{ entry['input'] }}</div>
+                        <div><strong>Bot Output:</strong> {{ entry['output'] }}</div>
+                    </li>
+                {% endfor %}
+            </ul>
+            <form method="POST" action="/clear_history" class="clear-history-button">
+                <button type="submit">Clear History</button>
+            </form>
+        {% endif %}
+    </div>
+    
+    <div id="item-suggestions"></div>
+    <div class="chat-container">
+        <div class="chat-messages" id="chat-messages">
+            <!-- Initial message -->
+            <div class="bot-message">Hi there! What would you like to buy?</div>
+        </div>
+        <div class="user-input-form">
+            <input type="text" id="user-input" placeholder="Type your message..." oninput="handleItemSearch()" />
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+    <div id="item-suggestions-container" class="chat-container">
+        <strong>Item Search:</strong>
+        <input type="text" id="user-input" placeholder="Type your message..." oninput="handleItemSearch()" />
+        <ul id="item-suggestions-list"></ul>
+    </div>              
+    <script>
+            function searchItems() {
+                var userInput = document.getElementById('user-input').value;
+            
+                // Display user message
+                displayMessage('user', userInput);
+            
+                // Send the user input to the server for processing
+                fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ user_input: userInput }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Display bot response
+                    displayMessage('bot', data.response);
+            
+                    // Display item suggestions
+                    var suggestionsContainer = document.getElementById('item-suggestions-list');
+                    suggestionsContainer.innerHTML = '';
+            
+                    if (data.item_search_output && data.item_search_output.length > 0) {
+                        data.item_search_output.forEach(function(suggestion) {
+                            var suggestionElement = document.createElement('li');
+                            suggestionElement.innerHTML = suggestion;
+                            suggestionElement.addEventListener('click', function() {
+                                // Auto-fill the suggestion into the input field
+                                document.getElementById('user-input').value = suggestion;
+                                // Clear item suggestions and hide the suggestions container
+                                suggestionsContainer.innerHTML = '';
+                                document.getElementById('item-suggestions-container').style.display = 'none';
+                            });
+                            suggestionsContainer.appendChild(suggestionElement);
+                        });
+                        // Show the item suggestions container
+                        document.getElementById('item-suggestions-container').style.display = 'block';
+                    } else {
+                        // Hide the item suggestions container if there are no close matches
+                        document.getElementById('item-suggestions-container').style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            }
+            
+    
+        function sendMessage() {
+            // Fetch user input
+            var userInput = document.getElementById('user-input').value;
+
+            // Display user message
+            displayMessage('user', userInput);
+
+            // Send the user input to the server for processing
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ user_input: userInput }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Display bot response
+                displayMessage('bot', data.response);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+
+            // Clear user input
+            document.getElementById('user-input').value = '';
+        }
+        function getAutocompleteSuggestions() {
+            const inputElement = document.getElementById('searchInput');
+            const inputValue = inputElement.value.trim();
+    
+            if (inputValue.length === 0) {
+                clearSuggestions();
+                return;
+            }
+    
+            fetch(`/autocomplete?prefix=${inputValue}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(suggestions => showSuggestions(suggestions))
+                .catch(error => console.error('Error fetching suggestions:', error));
+        }
+    
+        function showSuggestions(suggestions) {
+            const suggestionsElement = document.getElementById('suggestions');
+            suggestionsElement.innerHTML = '';
+    
+            for (const [word, _] of suggestions) {
+                const suggestionDiv = document.createElement('div');
+                suggestionDiv.className = 'suggestion';
+                suggestionDiv.textContent = word;
+                suggestionDiv.onclick = () => {
+                    document.getElementById('searchInput').value = word;
+                    clearSuggestions();
+                };
+                suggestionsElement.appendChild(suggestionDiv);
+            }
+    
+            suggestionsElement.style.display = suggestions.length ? 'block' : 'none';
+        }
+    
+        function clearSuggestions() {
+            const suggestionsElement = document.getElementById('suggestions');
+            suggestionsElement.innerHTML = '';
+            suggestionsElement.style.display = 'none';
+        }
+    
+        function handleKeyDown() {
+            const inputElement = document.getElementById('searchInput');
+            const suggestionsElement = document.getElementById('suggestions');
+            const selectedSuggestion = suggestionsElement.querySelector('.suggestion:hover');
+    
+            if (event.key === 'Enter' && selectedSuggestion) {
+                inputElement.value = selectedSuggestion.textContent;
+                clearSuggestions();
+            }
+    }
+    </script> 
+</body>
+</html>
